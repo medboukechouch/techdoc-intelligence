@@ -4,9 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from datasets import Dataset
-from ragas import evaluate
-from ragas.metrics import answer_relevancy, faithfulness
 from qdrant_client import QdrantClient
 
 from agent.graph import graph
@@ -39,6 +36,10 @@ def _qdrant_client(qdrant_host: str, qdrant_port: int) -> QdrantClient:
     return QdrantClient(host=qdrant_host, port=qdrant_port)
 
 def run_evaluation(collection_name: str, qdrant_host: str, qdrant_port: int) -> dict:
+    from datasets import Dataset
+    from ragas import evaluate
+    from ragas.metrics import answer_relevancy, faithfulness
+
     embedder = Embedder()
     client = _qdrant_client(qdrant_host, qdrant_port)
 

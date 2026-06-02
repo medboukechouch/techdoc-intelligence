@@ -15,9 +15,6 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
-from ragas import evaluate
-from ragas.metrics import answer_relevancy, faithfulness
-from datasets import Dataset
 
 from ingestion import ingest_pdf
 from ingestion.embedder import Embedder
@@ -133,6 +130,10 @@ def get_document_summary(source_filename: str) -> dict:
 @mcp.tool()
 def evaluate_last_answer(question: str, answer: str, contexts: list[str]) -> dict:
     """Evaluate a single QA pair using RAGAS metrics."""
+    from ragas import evaluate
+    from ragas.metrics import answer_relevancy, faithfulness
+    from datasets import Dataset
+
     dataset = Dataset.from_dict(
         {"question": [question], "answer": [answer], "contexts": [contexts]}
     )
