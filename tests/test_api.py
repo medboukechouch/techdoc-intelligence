@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from api.main import app
 
@@ -16,7 +16,7 @@ async def test_health_connected(monkeypatch):
     mock_client.get_collections.return_value = {"collections": []}
     monkeypatch.setattr("api.main.QdrantClient", lambda host, port: mock_client)
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.get("/health")
 
     assert resp.status_code == 200
@@ -26,7 +26,7 @@ async def test_health_connected(monkeypatch):
 async def test_ingest_success(monkeypatch):
     monkeypatch.setattr("api.main.ingest_pdf", lambda **kwargs: 2)
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/ingest", json={"pdf_path": "/tmp/sample.pdf"})
 
     assert resp.status_code == 200
@@ -49,7 +49,7 @@ async def test_query_sse_stream(monkeypatch):
 
     monkeypatch.setattr("api.main.graph", SimpleNamespace(astream_events=fake_events))
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         async with client.stream("POST", "/query", json={"question": "hi"}) as resp:
             body = await resp.aread()
 
@@ -66,7 +66,7 @@ async def test_documents(monkeypatch):
     ]
     monkeypatch.setattr("api.main.QdrantClient", lambda host, port: mock_client)
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.get("/documents")
 
     assert resp.status_code == 200
