@@ -1,0 +1,14 @@
+langgraph
+langchain
+langchain-google-genai
+qdrant-client
+fastapi
+uvicorn
+fastmcp
+pymupdf
+sentence-transformers
+ragas
+pytest
+httpx
+python-dotenv
+pydantic
