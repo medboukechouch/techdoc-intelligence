@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastmcp import FastMCP, ToolError
+from fastmcp import FastMCP
+try:
+    from fastmcp.exceptions import ToolError
+except Exception:  # pragma: no cover - fallback if exceptions module is missing
+    ToolError = ValueError
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient

@@ -9,6 +9,7 @@ pymupdf
 sentence-transformers
 ragas
 pytest
+pytest-asyncio
 httpx
 python-dotenv
 pydantic
