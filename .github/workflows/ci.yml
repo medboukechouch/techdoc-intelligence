@@ -13,10 +13,18 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "GEMINI_API_KEY=test_key" >> .env
+          echo "QDRANT_HOST=localhost" >> .env
+          echo "QDRANT_PORT=6333" >> .env
+          echo "COLLECTION_NAME=techdoc" >> .env
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run tests
         run: |
+          pip install -e .
           pytest -q
