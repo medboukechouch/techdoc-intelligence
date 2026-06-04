@@ -57,22 +57,46 @@ def health():
     except Exception:
         return {"status": "error", "qdrant": "unreachable"}
 
+from fastapi import File, UploadFile, HTTPException
+import os
+import shutil
+
 @app.post("/ingest", response_model=IngestResponse)
-def ingest(request: IngestRequest) -> IngestResponse:
+async def ingest(file: UploadFile = File(...)) -> IngestResponse:
+    # 1. Vérifier que le fichier est bien un PDF
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Le fichier doit obligatoirement être un PDF.")
+    
+    # 2. Vérifier la taille (1 Go = 1024 * 1024 * 1024 octets)
+    # Note : FastAPI (Starlette) permet de lire la taille directement
+    MAX_SIZE = 1024 * 1024 * 1024
+    if file.size and file.size > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="Le fichier est trop volumineux. La taille maximale est de 1 Go.")
+
+    # 3. Préparer le dossier d'accueil pour le fichier uploadé
+    os.makedirs("data", exist_ok=True)
+    temp_file_path = f"data/{file.filename}"
+
+    # 4. Sauvegarder le fichier physiquement dans le conteneur
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 5. Reprendre ta logique d'ingestion existante
     collection_name = _collection_name()
     chunks_ingested = ingest_pdf(
-        pdf_path=request.pdf_path,
+        pdf_path=temp_file_path,  # On passe le chemin du fichier qu'on vient de sauvegarder
         collection_name=collection_name,
         qdrant_host=os.getenv("QDRANT_HOST", "localhost"),
         qdrant_port=int(os.getenv("QDRANT_PORT", "6333")),
     )
-    source = os.path.basename(request.pdf_path)
+
+    # Optionnel : Tu peux supprimer le fichier avec os.remove(temp_file_path) ici pour économiser de l'espace
+
     return IngestResponse(
         status="success",
         chunks_ingested=chunks_ingested,
-        source=source,
+        source=file.filename,
     )
-
 @app.post("/query")
 def query(request: QueryRequest) -> StreamingResponse:
     if request.collection_name:
