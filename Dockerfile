@@ -3,12 +3,15 @@ FROM python:3.11-slim AS builder
 WORKDIR /install
 
 COPY requirements.txt ./
+# --- LIGNE AJOUTÉE POUR METTRE À JOUR PIP ---
+RUN pip install --upgrade pip
+# --------------------------------------------
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
-	PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
