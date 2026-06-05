@@ -17,7 +17,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - .:/app              # <-- LA LIGNE MAGIQUE : synchronise tout le code source !
+      - ./data:/app/data    
     restart: unless-stopped
 
 volumes:

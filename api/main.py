@@ -115,31 +115,26 @@ def query(request: QueryRequest) -> StreamingResponse:
     }
 
     async def event_stream() -> AsyncGenerator[str, None]:
-        final_state = None
-        async for event in graph.astream_events(initial_state, version="v1"):
-            event_type = event.get("event")
-            node_name = event.get("name") or event.get("metadata", {}).get("node")
+        # On copie l'état initial pour le mettre à jour progressivement
+        final_state = initial_state.copy()
+        
+        # Utilisation de astream() (La méthode moderne et stable)
+        async for chunk in graph.astream(initial_state):
+            # chunk est un dict, ex: {"router_node": {"question_type": "factual"}}
+            for node_name, state_update in chunk.items():
+                # 1. On annonce que le noeud vient de tourner
+                yield _sse({"node": node_name, "status": "completed"})
+                
+                # 2. On met à jour notre mémoire globale
+                final_state.update(state_update)
+                
+                # 3. Si on a des infos spécifiques, on les affiche en direct
+                if node_name == "answer_node" and "answer" in state_update:
+                    yield _sse({"node": "answer_node", "output": state_update["answer"]})
+                if node_name == "critique_node" and "confidence" in state_update:
+                    yield _sse({"node": "critique_node", "output": state_update["confidence"]})
 
-            if event_type == "on_node_start" and node_name:
-                yield _sse({"node": node_name, "status": "running"})
-
-            if event_type == "on_node_end" and node_name:
-                output = event.get("data", {}).get("output")
-                if node_name == "answer_node" and isinstance(output, dict):
-                    if "answer" in output:
-                        yield _sse({"node": "answer_node", "output": output["answer"]})
-                if node_name == "critique_node" and isinstance(output, dict):
-                    if "confidence" in output:
-                        yield _sse(
-                            {"node": "critique_node", "output": output["confidence"]}
-                        )
-
-            if event_type == "on_chain_end":
-                final_state = event.get("data", {}).get("output")
-
-        if final_state is None:
-            final_state = initial_state
-
+        # Fin du processus : on envoie le résumé complet sans l'écraser !
         response = QueryResponse(
             answer=final_state.get("answer", ""),
             sources=final_state.get("sources", []),
