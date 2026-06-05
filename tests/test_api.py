@@ -26,8 +26,18 @@ async def test_health_connected(monkeypatch):
 async def test_ingest_success(monkeypatch):
     monkeypatch.setattr("api.main.ingest_pdf", lambda **kwargs: 2)
 
+    # 1. On crée un faux contenu PDF en mémoire (binaire)
+    fake_pdf_content = b"%PDF-1.4 \n Fake PDF content for testing"
+    
+    # 2. On prépare le format attendu par httpx pour un fichier
+    # "file" correspond au nom de la variable dans ta route FastAPI : async def ingest(file: UploadFile)
+    upload_files = {
+        "file": ("sample.pdf", fake_pdf_content, "application/pdf")
+    }
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post("/ingest", json={"pdf_path": "/tmp/sample.pdf"})
+        # 3. On envoie 'files=upload_files' au lieu de 'json=...'
+        resp = await client.post("/ingest", files=upload_files)
 
     assert resp.status_code == 200
     body = resp.json()
