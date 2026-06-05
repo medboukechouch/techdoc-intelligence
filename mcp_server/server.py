@@ -33,7 +33,7 @@ def _collection_name() -> str:
     return os.getenv("COLLECTION_NAME", "techdocs")
 
 def _get_llm() -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(model="gemini-flash latest")
+    return ChatGoogleGenerativeAI(model="gemini-flash-latest")
 
 def _metric_value(result: Any, key: str) -> float:
     try:
