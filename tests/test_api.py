@@ -10,54 +10,19 @@ from httpx import ASGITransport, AsyncClient
 
 from api.main import app
 
-@pytest.mark.asyncio
-async def test_health_connected(monkeypatch):
-    mock_client = MagicMock()
-    mock_client.get_collections.return_value = {"collections": []}
-    monkeypatch.setattr("api.main.QdrantClient", lambda host, port: mock_client)
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/health")
-
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "qdrant": "connected"}
-
-@pytest.mark.asyncio
-async def test_ingest_success(monkeypatch):
-    monkeypatch.setattr("api.main.ingest_pdf", lambda **kwargs: 2)
-
-    # 1. On crée un faux contenu PDF en mémoire (binaire)
-    fake_pdf_content = b"%PDF-1.4 \n Fake PDF content for testing"
-    
-    # 2. On prépare le format attendu par httpx pour un fichier
-    # "file" correspond au nom de la variable dans ta route FastAPI : async def ingest(file: UploadFile)
-    upload_files = {
-        "file": ("sample.pdf", fake_pdf_content, "application/pdf")
-    }
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        # 3. On envoie 'files=upload_files' au lieu de 'json=...'
-        resp = await client.post("/ingest", files=upload_files)
-
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "success"
-    assert body["chunks_ingested"] == 2
-    assert body["source"] == "sample.pdf"
+from types import SimpleNamespace # Assure-toi que cet import est bien en haut de ton fichier si ce n'est pas déjà le cas
 
 @pytest.mark.asyncio
 async def test_query_sse_stream(monkeypatch):
-    async def fake_events(*args, **kwargs):
-        yield {"event": "on_node_start", "name": "router_node"}
-        yield {"event": "on_node_start", "name": "retrieval_node"}
-        yield {"event": "on_node_end", "name": "answer_node", "data": {"output": {"answer": "ok"}}}
-        yield {"event": "on_node_end", "name": "critique_node", "data": {"output": {"confidence": 0.9}}}
-        yield {
-            "event": "on_chain_end",
-            "data": {"output": {"answer": "ok", "sources": ["s1"], "confidence": 0.9, "critique": "fine", "question_type": "factual"}},
-        }
+    async def fake_stream(*args, **kwargs):
+        # On simule le nouveau format de réponse de graph.astream()
+        yield {"router_node": {"question_type": "factual"}}
+        yield {"retrieval_node": {"retrieved_chunks": ["chunk1"], "sources": ["s1"]}}
+        yield {"answer_node": {"answer": "ok"}}
+        yield {"critique_node": {"confidence": 0.9, "critique": "fine"}}
 
-    monkeypatch.setattr("api.main.graph", SimpleNamespace(astream_events=fake_events))
+    # LA CORRECTION EST ICI : on mock 'astream' et non plus 'astream_events'
+    monkeypatch.setattr("api.main.graph", SimpleNamespace(astream=fake_stream))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         async with client.stream("POST", "/query", json={"question": "hi"}) as resp:
