@@ -55,12 +55,16 @@ def retrieval_node(state: AgentState) -> dict:
     vector = embedder.embed([state["question"]])[0]
 
     client = QdrantClient(host=qdrant_host, port=qdrant_port)
-    results = client.search(
+    
+    # --- LA CORRECTION QDRANT EST ICI ---
+    response = client.query_points(
         collection_name=collection_name,
-        query_vector=vector,
+        query=vector,
         limit=5,
         with_payload=True,
     )
+    results = response.points
+    # ------------------------------------
 
     chunks: list[str] = []
     scores: list[float] = []
