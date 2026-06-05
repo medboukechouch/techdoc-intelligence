@@ -16,7 +16,17 @@ from ingestion.embedder import Embedder
 load_dotenv()
 
 def _get_llm() -> ChatGoogleGenerativeAI:
+    # Utilisation de l'appellation standard recommandée pour Gemini
     return ChatGoogleGenerativeAI(model="gemini-flash-latest")
+
+def _extract_text(content: Any) -> str:
+    """Extrait le texte en toute sécurité, même si l'IA renvoie une liste."""
+    if isinstance(content, list):
+        return " ".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return str(content)
 
 def router_node(state: AgentState) -> dict:
     """Classify question type."""
@@ -26,7 +36,11 @@ def router_node(state: AgentState) -> dict:
     )
     messages = [SystemMessage(content=system), HumanMessage(content=state["question"])]
     response = llm.invoke(messages)
-    label = response.content.strip().lower()
+    
+    # Utilisation de notre fonction sécurisée
+    raw_text = _extract_text(response.content)
+    label = raw_text.strip().lower()
+    
     if label not in {"factual", "comparative", "summary"}:
         label = "factual"
     return {"question_type": label}
@@ -75,7 +89,11 @@ def validation_node(state: AgentState) -> dict:
     system = "Rephrase the question to improve retrieval while keeping meaning."
     messages = [SystemMessage(content=system), HumanMessage(content=state["question"])]
     response = llm.invoke(messages)
-    new_question = response.content.strip()
+    
+    # Sécurisation ici aussi
+    raw_text = _extract_text(response.content)
+    new_question = raw_text.strip()
+    
     return {"retry_count": retry_count + 1, "question": new_question}
 
 def answer_node(state: AgentState) -> dict:
@@ -92,7 +110,10 @@ def answer_node(state: AgentState) -> dict:
         f"Context:\n{context}"
     )
     response = llm.invoke([HumanMessage(content=prompt)])
-    return {"answer": response.content.strip()}
+    
+    # Sécurisation
+    raw_text = _extract_text(response.content)
+    return {"answer": raw_text.strip()}
 
 def critique_node(state: AgentState) -> dict:
     """Critique answer and produce confidence score."""
@@ -105,7 +126,10 @@ def critique_node(state: AgentState) -> dict:
         f"Context:\n{state.get('retrieved_chunks', [])}"
     )
     response = llm.invoke([HumanMessage(content=prompt)])
-    text = response.content.strip()
+    
+    # Sécurisation finale
+    raw_text = _extract_text(response.content)
+    text = raw_text.strip()
 
     match = re.search(r"\b(0(?:\.\d+)?|1(?:\.0+)?)\b", text)
     confidence = float(match.group(1)) if match else 0.0
