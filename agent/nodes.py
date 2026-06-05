@@ -16,7 +16,7 @@ from ingestion.embedder import Embedder
 load_dotenv()
 
 def _get_llm() -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(model="gemini-flash latest")
+    return ChatGoogleGenerativeAI(model="gemini-flash-latest")
 
 def router_node(state: AgentState) -> dict:
     """Classify question type."""
