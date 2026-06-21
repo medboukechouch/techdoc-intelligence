@@ -53,12 +53,14 @@ def run_evaluation(collection_name: str, qdrant_host: str, qdrant_port: int) -> 
     for item in EVAL_DATASET:
         question = item["question"]
         query_vector = embedder.embed([question])[0]
-        results = client.search(
+        
+        response = client.query_points(
             collection_name=collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=3,
             with_payload=True,
         )
+        results = response.points
         contexts = [r.payload.get("text", "") for r in results if r.payload]
 
         state = {
