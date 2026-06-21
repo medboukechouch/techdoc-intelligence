@@ -9,6 +9,8 @@ from qdrant_client import QdrantClient
 from agent.graph import graph
 from ingestion.embedder import Embedder
 
+# TODO: remplace ces questions/réponses par du contenu réel tiré
+# du PDF que tu vas ingérer (ex: un manuel technique, une RFC, etc.)
 EVAL_DATASET = [
     {
         "question": "What is the purpose of this system?",
@@ -39,6 +41,10 @@ def run_evaluation(collection_name: str, qdrant_host: str, qdrant_port: int) -> 
     from datasets import Dataset
     from ragas import evaluate
     from ragas.metrics import answer_relevancy, faithfulness
+    from ragas.llms import LangchainLLMWrapper
+    from ragas.embeddings import LangchainEmbeddingsWrapper
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_huggingface import HuggingFaceEmbeddings
 
     embedder = Embedder()
     client = _qdrant_client(qdrant_host, qdrant_port)
@@ -78,7 +84,20 @@ def run_evaluation(collection_name: str, qdrant_host: str, qdrant_port: int) -> 
         )
 
     dataset = Dataset.from_list(samples)
-    results = evaluate(dataset, metrics=[faithfulness, answer_relevancy])
+
+    # Juge Gemini + embeddings locaux (sentence-transformers) au lieu
+    # du défaut OpenAI de RAGAS — cohérent avec le reste du stack.
+    ragas_llm = LangchainLLMWrapper(ChatGoogleGenerativeAI(model="gemini-flash-latest"))
+    ragas_embeddings = LangchainEmbeddingsWrapper(
+        HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    )
+
+    results = evaluate(
+        dataset,
+        metrics=[faithfulness, answer_relevancy],
+        llm=ragas_llm,
+        embeddings=ragas_embeddings,
+    )
     return {
         "faithfulness": float(results["faithfulness"][0]),
         "answer_relevancy": float(results["answer_relevancy"][0]),
